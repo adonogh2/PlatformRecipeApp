@@ -1,0 +1,108 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator, Button } from 'react-native';
+import { globalStyles, recipeStyles } from './styles'; // Importing styles 
+
+const RecipeDetails = ({ route }) => {
+  const { item } = route.params;
+  // initial is set to NULL for no recipie is clicked
+  const [recipeDetails, setRecipeDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  // This array will be filled with our ingredient data
+  const [ingredientDetails, setIngredientDetails] = useState([]); 
+
+  useEffect(() => {
+    // Getting details from the API
+    const fetchRecipeDetails = async () => {
+      const url = `https://tasty.p.rapidapi.com/recipes/get-more-info?id=${item.id}`;
+      const options = {
+        method: 'GET',
+        // API
+        headers: {
+          'X-RapidAPI-Key': '6b023667b8mshe1778ebdd791a80p1a1efejsnd2b7c4d24142',
+          'X-RapidAPI-Host': 'tasty.p.rapidapi.com',
+        },
+      };
+
+      try {
+        const response = await fetch(url, options);
+        const result = await response.json();
+
+        //Updating recipe details based on the API data
+        setRecipeDetails(result);
+        setLoading(false);
+      } catch (error) {
+        console.error(error);
+        //Data collection complete
+        setLoading(false);
+      }
+    };
+
+    fetchRecipeDetails();
+  }, [item.id]);
+
+  const fetchIngredients = async () => {
+    const url = `https://tasty.p.rapidapi.com/recipes/list?from=0&size=20&tags=under_30_minutes`;
+    const options = {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': '6b023667b8mshe1778ebdd791a80p1a1efejsnd2b7c4d24142',
+        'X-RapidAPI-Host': 'tasty.p.rapidapi.com',
+      },
+    };
+
+    try {
+      const response = await fetch(url, options);
+      const result = await response.json();
+
+      if (result.results && Array.isArray(result.results)) {
+        const currentRecipe = result.results.find(recipe => recipe.id === item.id);
+
+        if (currentRecipe && currentRecipe.sections && Array.isArray(currentRecipe.sections)) {
+          const ingredientSection = currentRecipe.sections.find(section => section.components);
+
+          if (ingredientSection && Array.isArray(ingredientSection.components)) {
+            const ingredients = ingredientSection.components.map(component => component.ingredient.display_singular);
+            setIngredientDetails(ingredients);
+          } else {
+            console.error('No ingredients found in the API response.');
+          }
+        } else {
+          console.error('No sections found in the API response.');
+        }
+      } else {
+        console.error('Unexpected API response format:', result);
+      }
+    } catch (error) {
+      console.error('Error fetching ingredients:', error);
+    }
+  };
+
+  if (loading) {
+    return <ActivityIndicator size="large" />;
+  }
+
+  return (
+    <View style={globalStyles.container}>
+      <Text style={recipeStyles.recipeName}>{item.name}</Text>
+      {recipeDetails && (
+        <View style={recipeStyles.recipeDetails}>
+          <Text style={recipeStyles.recipeDescription}>{recipeDetails.description}</Text>
+          {/* Display Fetch Ingredients button  */}
+          <Button
+            title="Fetch Ingredients"
+            onPress={fetchIngredients}
+            style={recipeStyles.fetchIngredientsButton}
+          />
+          {/* Display ingredient details */}
+          {ingredientDetails.map((ingredient, index) => (
+
+            <Text key={index} style={recipeStyles.ingredientText}>{ingredient}</Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+// exporting our component
+export default RecipeDetails;
